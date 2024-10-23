@@ -22,4 +22,11 @@ tauri = { version = "2", features = [] }
 tauri-plugin-shell = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+steamlocate = "1.2.1"
+tauri-plugin-dialog = "2"
+tauri-plugin-upload = "2"
+time = { version = "0.3.36", features = ["parsing", "macros", "serde"] }
+reqwest = { version = "0.12.8", features = ["stream"] }
+futures-util = "0.3.31"
+zip-extract = "0.2.1"
 
