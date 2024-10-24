@@ -2,8 +2,9 @@
   import { invoke } from "@tauri-apps/api/core";
   import { appCacheDir } from "@tauri-apps/api/path";
   import { download } from "@tauri-apps/plugin-upload";
+  import { onMount } from "svelte";
 
-  export let obj: string;
+  export let target: string;
   const urlMap: Record<string, string> = {
     translation:
       "https://drive.google.com/uc?id=1eYAZiLb6xmNQZw-sxh1mJWshTC6xHLJz",
@@ -20,36 +21,46 @@
 
   let max = 100;
   let value = 0;
+  let downloaded = false;
 
   const download0 = async () => {
     value = 0;
-    const url = urlMap[obj];
+    const url = urlMap[target];
     const dir = await appCacheDir();
-    await download(url, `${dir}/${obj}.zip`, ({ progress, total }) => {
+    await download(url, `${dir}/${target}.zip`, ({ progress, total }) => {
       max = total;
       value += progress;
     });
-    await invoke("record_download_time", { obj });
+    await invoke("record_download_time", { target });
+    downloaded = true;
   };
 
   let error = "";
   let result = "";
   const apply = async () => {
     try {
-      await invoke(`extract_${obj}`);
+      await invoke(`extract_${target}`);
       result = "완료";
     } catch (e: any) {
       error = e;
     }
   };
+
+  onMount(async () => {
+    const targetExists = await invoke("is_exists", { target });
+    if (targetExists) {
+      value = max;
+      downloaded = true;
+    }
+  });
 </script>
 
 <div>
   <div>
-    <span>{description[obj]}</span>
+    <span>{description[target]}</span>
     <progress {max} {value}></progress>
     <button on:click={download0}>다운로드</button>
-    <button on:click={apply}>적용</button>
+    <button on:click={apply} disabled={!downloaded}>적용</button>
     <span style="color: blue;">{result}</span>
   </div>
   <p style="color: red;">{error}</p>

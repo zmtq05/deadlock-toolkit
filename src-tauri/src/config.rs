@@ -12,7 +12,25 @@ use time::OffsetDateTime;
 #[derive(Clone, Serialize, Deserialize)]
 pub struct MyConfig {
     pub game_path: Option<PathBuf>,
-    pub downloaded_at: HashMap<String, OffsetDateTime>,
+    pub downloaded_at: HashMap<DownloadTarget, OffsetDateTime>,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum DownloadTarget {
+    Translation,
+    BuiltinFont,
+    ExternalFont,
+}
+
+impl DownloadTarget {
+    pub fn to_file_name(self) -> &'static str {
+        match self {
+            DownloadTarget::Translation => "translation.zip",
+            DownloadTarget::BuiltinFont => "builtin_font.zip",
+            DownloadTarget::ExternalFont => "external_font.zip",
+        }
+    }
 }
 
 impl MyConfig {

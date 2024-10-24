@@ -52,6 +52,7 @@ pub fn run() {
             extract_external_font,
             record_download_time,
             get_download_time,
+            is_exists,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

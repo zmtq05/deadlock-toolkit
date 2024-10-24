@@ -8,7 +8,7 @@ use std::{
 use tauri::{command, Manager, State};
 use time::OffsetDateTime;
 
-use crate::config::MyConfig;
+use crate::config::{DownloadTarget, MyConfig};
 
 #[command]
 pub fn get_game_path(config: State<'_, RwLock<MyConfig>>) -> Option<PathBuf> {
@@ -102,17 +102,28 @@ pub async fn extract_external_font(
 }
 
 #[command]
-pub fn record_download_time(config: State<'_, RwLock<MyConfig>>, obj: String) -> tauri::Result<()> {
+pub fn record_download_time(
+    config: State<'_, RwLock<MyConfig>>,
+    target: DownloadTarget,
+) -> tauri::Result<()> {
     let mut config = config.write().unwrap();
-    config.downloaded_at.insert(obj, OffsetDateTime::now_utc());
+    config
+        .downloaded_at
+        .insert(target, OffsetDateTime::now_utc());
     Ok(())
 }
 
 #[command]
 pub fn get_download_time(
     config: State<'_, RwLock<MyConfig>>,
-    obj: String,
+    target: DownloadTarget,
 ) -> Option<OffsetDateTime> {
     let config = config.read().unwrap();
-    config.downloaded_at.get(&obj).copied()
+    config.downloaded_at.get(&target).copied()
+}
+
+#[command]
+pub fn is_exists(handle: tauri::AppHandle, target: DownloadTarget) -> bool {
+    let cache_dir = handle.path().app_cache_dir().unwrap();
+    cache_dir.join(target.to_file_name()).exists()
 }

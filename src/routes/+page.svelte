@@ -31,8 +31,8 @@
     {/if}
   </div>
 
-  {#each ["translation", "builtin_font", "external_font"] as obj}
-    <DownloadControl {obj} />
+  {#each ["translation", "builtin_font", "external_font"] as target}
+    <DownloadControl {target} />
   {/each}
 </main>
 
