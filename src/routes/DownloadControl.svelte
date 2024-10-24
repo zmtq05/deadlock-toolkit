@@ -22,6 +22,7 @@
   let max = 100;
   let value = 0;
   let downloaded = false;
+  let newVersion = false;
 
   const download0 = async () => {
     value = 0;
@@ -51,6 +52,11 @@
     if (targetExists) {
       value = max;
       downloaded = true;
+      try {
+        newVersion = await invoke("check_update", { target });
+      } catch (e: any) {
+        error = e;
+      }
     }
   });
 </script>
@@ -62,6 +68,9 @@
     <button on:click={download0}>다운로드</button>
     <button on:click={apply} disabled={!downloaded}>적용</button>
     <span style="color: blue;">{result}</span>
+    {#if newVersion}
+      <span>업데이트가 있습니다.</span>
+    {/if}
   </div>
   <p style="color: red;">{error}</p>
 </div>

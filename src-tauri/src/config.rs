@@ -31,6 +31,20 @@ impl DownloadTarget {
             DownloadTarget::ExternalFont => "external_font.zip",
         }
     }
+
+    pub fn download_url(self) -> &'static str {
+        match self {
+            DownloadTarget::Translation => {
+                "https://drive.google.com/uc?id=1eYAZiLb6xmNQZw-sxh1mJWshTC6xHLJz"
+            }
+            DownloadTarget::BuiltinFont => {
+                "https://drive.google.com/uc?id=1kEHlqJ58PE5lSaSr_Hmmgclij1tSjR17"
+            }
+            DownloadTarget::ExternalFont => {
+                "https://drive.google.com/uc?id=1t2lh6KPnTkBoM_-PPFmx5CRBum-gLb31"
+            }
+        }
+    }
 }
 
 impl MyConfig {

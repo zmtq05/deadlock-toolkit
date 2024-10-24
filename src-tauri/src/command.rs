@@ -5,8 +5,10 @@ use std::{
     sync::RwLock,
 };
 
+use anyhow::anyhow;
+use reqwest::header::LAST_MODIFIED;
 use tauri::{command, Manager, State};
-use time::OffsetDateTime;
+use time::{format_description::well_known::Rfc2822, OffsetDateTime};
 
 use crate::config::{DownloadTarget, MyConfig};
 
@@ -126,4 +128,42 @@ pub fn get_download_time(
 pub fn is_exists(handle: tauri::AppHandle, target: DownloadTarget) -> bool {
     let cache_dir = handle.path().app_cache_dir().unwrap();
     cache_dir.join(target.to_file_name()).exists()
+}
+
+#[command]
+pub async fn check_update(
+    config: State<'_, RwLock<MyConfig>>,
+    target: DownloadTarget,
+) -> tauri::Result<bool> {
+    let response = reqwest::Client::new()
+        .head(target.download_url())
+        .send()
+        .await
+        .map_err(|e| anyhow!(e))?;
+
+    if !response.status().is_success() {
+        return Err(anyhow!(response.status().as_u16()))?;
+    }
+
+    let config = config.read().unwrap();
+    match response.headers().get(LAST_MODIFIED) {
+        Some(last_modified) => {
+            let last_modified =
+                OffsetDateTime::parse(last_modified.to_str().unwrap(), &Rfc2822).unwrap();
+            Ok(config
+                .downloaded_at
+                .get(&target)
+                .is_some_and(|download_time| {
+                    #[cfg(debug_assertions)]
+                    println!(
+                        "{} - last: {} | downloaded: {}",
+                        target.to_file_name(),
+                        last_modified.format(&Rfc2822).unwrap(),
+                        download_time.format(&Rfc2822).unwrap(),
+                    );
+                    &last_modified > download_time // NOTE: not verified
+                }))
+        }
+        None => Ok(false),
+    }
 }

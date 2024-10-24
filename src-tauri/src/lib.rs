@@ -53,6 +53,7 @@ pub fn run() {
             record_download_time,
             get_download_time,
             is_exists,
+            check_update,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
