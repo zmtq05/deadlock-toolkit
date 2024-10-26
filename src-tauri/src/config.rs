@@ -24,7 +24,7 @@ pub enum DownloadTarget {
 }
 
 impl DownloadTarget {
-    pub fn to_file_name(self) -> &'static str {
+    pub fn file_name(self) -> &'static str {
         match self {
             DownloadTarget::Translation => "translation.zip",
             DownloadTarget::BuiltinFont => "builtin_font.zip",
@@ -71,5 +71,10 @@ impl MyConfig {
         serde_json::to_writer(f, self)?;
 
         Ok(())
+    }
+
+    pub fn sync(&mut self, app_cache_dir: &Path) {
+        self.downloaded_at
+            .retain(|k, _| app_cache_dir.join(k.file_name()).exists());
     }
 }

@@ -17,14 +17,16 @@ pub fn run() {
             let path_resolver = app.handle().path();
             let app_config_dir = path_resolver.app_config_dir().unwrap();
             let config_path = app_config_dir.join("config.json");
-            let config = if app_config_dir.exists() && config_path.exists() {
+            let mut config = if app_config_dir.exists() && config_path.exists() {
                 MyConfig::load(config_path).expect("Failed to load config")
             } else {
                 fs::create_dir_all(&app_config_dir).expect("failed to create directory");
                 MyConfig::new()
             };
+            let app_cache_dir = path_resolver.app_cache_dir().unwrap();
+            fs::create_dir_all(&app_cache_dir)?;
+            config.sync(&app_cache_dir);
             app.manage(RwLock::new(config));
-            fs::create_dir_all(path_resolver.app_cache_dir().unwrap())?;
             Ok(())
         })
         .on_window_event(|window, event| {
@@ -47,9 +49,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             get_game_path,
             change_game_path,
-            extract_translation,
-            extract_builtin_font,
-            extract_external_font,
+            apply,
             record_download_time,
             get_download_time,
             is_exists,

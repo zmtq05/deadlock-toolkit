@@ -9,6 +9,7 @@ use anyhow::anyhow;
 use reqwest::header::LAST_MODIFIED;
 use tauri::{command, Manager, State};
 use time::{format_description::well_known::Rfc2822, OffsetDateTime};
+use zip_extract::ZipExtractError;
 
 use crate::config::{DownloadTarget, MyConfig};
 
@@ -31,76 +32,29 @@ pub fn change_game_path(path: &str, config: State<'_, RwLock<MyConfig>>) -> Resu
     }
 }
 
-async fn extract(src: impl AsRef<Path>, dest: impl AsRef<Path>) -> tauri::Result<()> {
+fn extract(src: impl AsRef<Path>, dest: impl AsRef<Path>) -> tauri::Result<()> {
     let archive = fs::read(src)?;
-    zip_extract::extract(Cursor::new(archive), dest.as_ref(), false).unwrap();
-    Ok(())
+    zip_extract::extract(Cursor::new(archive), dest.as_ref(), false).map_err(|e| match e {
+        ZipExtractError::Io(error) => error.into(),
+        ZipExtractError::Zip(zip_error) => std::io::Error::from(zip_error).into(),
+        ZipExtractError::StripToplevel { .. } => unreachable!(),
+    })
 }
 
 #[command]
-pub async fn extract_translation(
+pub fn apply(
     handle: tauri::AppHandle,
     config: State<'_, RwLock<MyConfig>>,
+    target: DownloadTarget,
 ) -> tauri::Result<()> {
-    let dest = {
-        let config = config.read().unwrap();
-        config
-            .game_path
-            .clone()
-            .ok_or("path doesn't exists")
-            .unwrap()
-    };
-    let src = handle
-        .path()
-        .app_cache_dir()
-        .unwrap()
-        .join("translation.zip");
-    extract(src, dest).await?;
-    Ok(())
-}
+    let src = handle.path().app_cache_dir()?.join(target.file_name());
+    let config = config.read().unwrap();
+    let dest = config
+        .game_path
+        .as_deref()
+        .ok_or(anyhow!("path doesn't exists"))?;
 
-#[command]
-pub async fn extract_builtin_font(
-    handle: tauri::AppHandle,
-    config: State<'_, RwLock<MyConfig>>,
-) -> tauri::Result<()> {
-    let dest = {
-        let config = config.read().unwrap();
-        config
-            .game_path
-            .clone()
-            .ok_or("path doesn't exists")
-            .unwrap()
-    };
-    let src = handle
-        .path()
-        .app_cache_dir()
-        .unwrap()
-        .join("builtin_font.zip");
-    extract(src, dest).await?;
-    Ok(())
-}
-
-#[command]
-pub async fn extract_external_font(
-    handle: tauri::AppHandle,
-    config: State<'_, RwLock<MyConfig>>,
-) -> tauri::Result<()> {
-    let dest = {
-        let config = config.read().unwrap();
-        config
-            .game_path
-            .clone()
-            .ok_or("path doesn't exists")
-            .unwrap()
-    };
-    let src = handle
-        .path()
-        .app_cache_dir()
-        .unwrap()
-        .join("external_font.zip");
-    extract(src, dest).await?;
-    Ok(())
+    extract(src, dest)
 }
 
 #[command]
@@ -108,8 +62,9 @@ pub fn record_download_time(
     config: State<'_, RwLock<MyConfig>>,
     target: DownloadTarget,
 ) -> tauri::Result<()> {
-    let mut config = config.write().unwrap();
     config
+        .write()
+        .unwrap()
         .downloaded_at
         .insert(target, OffsetDateTime::now_utc());
     Ok(())
@@ -120,14 +75,15 @@ pub fn get_download_time(
     config: State<'_, RwLock<MyConfig>>,
     target: DownloadTarget,
 ) -> Option<OffsetDateTime> {
-    let config = config.read().unwrap();
-    config.downloaded_at.get(&target).copied()
+    config.read().unwrap().downloaded_at.get(&target).copied()
 }
 
 #[command]
 pub fn is_exists(handle: tauri::AppHandle, target: DownloadTarget) -> bool {
-    let cache_dir = handle.path().app_cache_dir().unwrap();
-    cache_dir.join(target.to_file_name()).exists()
+    match handle.path().app_cache_dir() {
+        Ok(app_cache_dir) => app_cache_dir.join(target.file_name()).exists(),
+        Err(_) => false,
+    }
 }
 
 #[command]
@@ -142,7 +98,7 @@ pub async fn check_update(
         .map_err(|e| anyhow!(e))?;
 
     if !response.status().is_success() {
-        return Err(anyhow!(response.status().as_u16()))?;
+        return Err(anyhow!(response.status().as_u16()).into());
     }
 
     let config = config.read().unwrap();
@@ -157,7 +113,7 @@ pub async fn check_update(
                     #[cfg(debug_assertions)]
                     println!(
                         "{} - last: {} | downloaded: {}",
-                        target.to_file_name(),
+                        target.file_name(),
                         last_modified.format(&Rfc2822).unwrap(),
                         download_time.format(&Rfc2822).unwrap(),
                     );

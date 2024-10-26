@@ -40,7 +40,7 @@
   let result = "";
   const apply = async () => {
     try {
-      await invoke(`extract_${target}`);
+      await invoke("apply", { target });
       result = "완료";
     } catch (e: any) {
       error = e;
